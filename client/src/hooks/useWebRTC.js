@@ -245,7 +245,9 @@ export const useWebRTC = (roomId, displayName, onLeaveCallback) => {
     return new Promise((resolve, reject) => {
       try {
         const wsUrl = SIGNALING_SERVER.includes('/ws') ? SIGNALING_SERVER : `${SIGNALING_SERVER}/ws`;
+        console.log("🔌 WebSocket connecting to:", wsUrl);   // <-- ADD THIS
         const ws = new WebSocket(wsUrl);
+
         
         ws.onopen = () => {
           console.log('Connected to signaling server');
