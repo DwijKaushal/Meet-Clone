@@ -14,8 +14,7 @@ import { Participant } from './models/Participant.js';
 import { CallStat } from './models/CallStat.js';
 import { handleConnection } from './handlers/connectionHandler.js';
 
-// Load root .env first (if present) then local .env. This makes running
-// the server from either the repo root or the server directory behave the same.
+// Load environment variables
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 dotenv.config({ path: join(__dirname, '../.env') });
@@ -43,8 +42,6 @@ app.post('/api/rooms', async (req, res) => {
     const roomId = uuidv4();
     const roomName = name || `Room ${roomId.substring(0, 8)}`;
     
-    // Try to save to MongoDB if available
-    let saved = false;
     if (mongoose.connection.readyState === 1) {
       try {
         const room = new Room({
@@ -55,41 +52,29 @@ app.post('/api/rooms', async (req, res) => {
         });
         await room.save();
         logger.info(`Room created and saved: ${roomId}`);
-        saved = true;
       } catch (error) {
-        logger.warn(`Room created (in-memory only): ${roomId} - MongoDB save failed`);
+        logger.warn(`Room created but not saved (MongoDB issue): ${roomId}`);
       }
-    } else {
-      logger.info(`Room created (in-memory only): ${roomId} - MongoDB not connected`);
     }
-    
+
     res.json({ roomId, name: roomName });
   } catch (error) {
     logger.error('Error creating room:', error);
-    res.status(500).json({ error: 'Failed to create room', details: error.message });
+    res.status(500).json({ error: 'Failed to create room' });
   }
 });
 
 app.get('/api/rooms/:roomId', async (req, res) => {
   try {
-    // Try to fetch from MongoDB if available
     if (mongoose.connection.readyState === 1) {
-      try {
-        const room = await Room.findOne({ roomId: req.params.roomId });
-        if (room) {
-          return res.json(room);
-        }
-      } catch (error) {
-        logger.debug('Error fetching room from MongoDB:', error);
-      }
+      const room = await Room.findOne({ roomId: req.params.roomId });
+      if (room) return res.json(room);
     }
-    
-    // If not in MongoDB or MongoDB not available, return room exists (in-memory mode)
-    // This allows rooms to work without persistence
-    res.json({ 
-      roomId: req.params.roomId, 
+
+    res.json({
+      roomId: req.params.roomId,
       name: `Room ${req.params.roomId.substring(0, 8)}`,
-      inMemory: true 
+      inMemory: true
     });
   } catch (error) {
     logger.error('Error fetching room:', error);
@@ -107,8 +92,8 @@ app.get('/api/rooms/:roomId/participants', async (req, res) => {
   }
 });
 
-// WebSocket server
-const wss = new WebSocketServer({ 
+// WebSocket signaling server
+const wss = new WebSocketServer({
   server,
   path: '/ws'
 });
@@ -117,40 +102,41 @@ wss.on('connection', (ws, req) => {
   handleConnection(ws, req, wss);
 });
 
-// Connect to MongoDB
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/webrtc-conferencing';
+// MongoDB Connection
+const MONGODB_URI = process.env.MONGODB_URI;
 
 mongoose.connect(MONGODB_URI)
   .then(() => {
-    logger.info('Connected to MongoDB');
+    logger.info('✅ Connected to MongoDB');
     startServer();
   })
   .catch((error) => {
     logger.error('MongoDB connection error:', error);
-    logger.warn('⚠️  MongoDB connection failed. Server will start but room persistence may not work.');
-    logger.warn('💡 To fix: Start MongoDB with "mongod" or update MONGODB_URI in .env');
-    logger.warn('   Starting server anyway for development/testing...\n');
+    logger.warn('⚠️ Starting server anyway (rooms will not persist)');
     startServer();
   });
 
+// ✅ FIXED HERE — Bind to 0.0.0.0 so WebSocket works online
 function startServer() {
   const port = process.env.PORT || 3001;
-  server.listen(port, () => {
-    logger.info(`✅ HTTP server running on port ${port}`);
-    logger.info(`✅ WebSocket server running on ws://localhost:${port}/ws`);
-    logger.info(`🌐 Health check: http://localhost:${port}/health\n`);
+  const host = process.env.RENDER_EXTERNAL_URL || `localhost:${port}`;
+
+  server.listen(port, '0.0.0.0', () => {
+    logger.info(`✅ HTTP server running on: https://${host}`);
+    logger.info(`✅ WebSocket server running on: wss://${host}/ws`);
+    logger.info(`🌐 Health check: https://${host}/health\n`);
   });
 }
 
-// Handle MongoDB connection events
+// MongoDB connection events
 mongoose.connection.on('error', (error) => {
   logger.error('MongoDB connection error:', error);
 });
 
 mongoose.connection.on('disconnected', () => {
-  logger.warn('MongoDB disconnected. Attempting to reconnect...');
+  logger.warn('MongoDB disconnected. Retrying...');
 });
 
 mongoose.connection.on('reconnected', () => {
-  logger.info('MongoDB reconnected successfully');
+  logger.info('MongoDB reconnected');
 });
