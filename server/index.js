@@ -119,7 +119,10 @@ mongoose.connect(MONGODB_URI)
 // ✅ FIXED HERE — Bind to 0.0.0.0 so WebSocket works online
 function startServer() {
   const port = process.env.PORT || 3001;
-  const host = process.env.RENDER_EXTERNAL_URL || `localhost:${port}`;
+
+  // Fix URL – remove accidental "https://" duplication
+  const host = (process.env.RENDER_EXTERNAL_URL || `localhost:${port}`)
+    .replace(/^https?:\/\//, '');
 
   server.listen(port, '0.0.0.0', () => {
     logger.info(`✅ HTTP server running on: https://${host}`);
@@ -127,6 +130,7 @@ function startServer() {
     logger.info(`🌐 Health check: https://${host}/health\n`);
   });
 }
+
 
 // MongoDB connection events
 mongoose.connection.on('error', (error) => {
