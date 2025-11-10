@@ -1,0 +1,167 @@
+.controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+
+.controls-left,
+.controls-right {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.control-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  font-size: 1.3rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid transparent;
+}
+
+.control-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+.control-btn.active {
+  background: #4CAF50;
+  border-color: rgba(76, 175, 80, 0.5);
+}
+
+.control-btn.inactive {
+  background: #ff4444;
+}
+
+.control-btn.leave-btn {
+  width: auto;
+  padding: 12px 20px;
+  border-radius: 24px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  background: #ff4444;
+}
+
+.control-btn.leave-btn:hover {
+  background: #cc0000;
+}
+
+.device-menu-container {
+  position: relative;
+}
+
+.device-menu {
+  position: absolute;
+  bottom: 60px;
+  left: 0;
+  background: rgba(30, 30, 30, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  padding: 20px;
+  min-width: 280px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 1000;
+}
+
+.device-menu-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.device-menu-header h3 {
+  font-size: 1.1rem;
+  color: #ffffff;
+}
+
+.device-menu-header button {
+  background: none;
+  border: none;
+  color: #ffffff;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background 0.3s ease;
+}
+
+.device-menu-header button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.device-menu-content {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.device-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.device-group label {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 500;
+}
+
+.device-group select {
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.device-group select:focus {
+  outline: none;
+  border-color: #4CAF50;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.device-group select option {
+  background: #1a1a1a;
+  color: #ffffff;
+}
+
+@media (max-width: 768px) {
+  .controls {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .controls-left,
+  .controls-right {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .device-menu {
+    right: 0;
+    left: auto;
+  }
+}

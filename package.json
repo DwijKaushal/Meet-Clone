@@ -1,0 +1,17 @@
+{
+  "name": "webrtc-conferencing",
+  "version": "1.0.0",
+  "description": "Multi-party audio/video conferencing with WebRTC",
+  "scripts": {
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm start",
+    "install:all": "npm install && cd server && npm install && cd ../client && npm install",
+    "start:server": "cd server && npm start",
+    "start:client": "cd client && npm start",
+    "db:seed": "cd server && node ../scripts/seed.js",
+    "db:check": "cd server && node ../scripts/check-mongodb.js"
+  },
+  "keywords": ["webrtc", "conferencing", "video", "audio"],
+  "author": "",
+  "license": "MIT"
+}
