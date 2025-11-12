@@ -4,12 +4,16 @@ const SIGNALING_SERVER = process.env.REACT_APP_WS_URL || 'ws://localhost:3001/ws
 // STUN/TURN servers configuration
 const iceServers = [
   { urls: 'stun:stun.l.google.com:19302' },
-  // Add TURN server if available
-  ...(process.env.REACT_APP_TURN_SERVER ? [{
-    urls: process.env.REACT_APP_TURN_SERVER,
-    username: process.env.REACT_APP_TURN_USERNAME,
-    credential: process.env.REACT_APP_TURN_PASSWORD
-  }] : [])
+  {
+    urls: 'turn:global.relay.metered.ca:80',
+    username: 'openai-demo',
+    credential: 'openai-demo'
+  },
+  {
+    urls: 'turn:relay1.expressturn.com:3478',
+    username: 'efree',
+    credential: 'efree'
+  }
 ];
 
 export const useWebRTC = (roomId, displayName, onLeaveCallback) => {
