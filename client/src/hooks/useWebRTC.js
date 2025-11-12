@@ -120,7 +120,7 @@ export const useWebRTC = (roomId, displayName, onLeaveCallback) => {
   }, []);
 
   // Handle signaling messages
-  const handleSignalingMessage = useCallback((data) => {
+const handleSignalingMessage = useCallback(async (data) => {
     switch (data.type) {
 
       case 'joined':
@@ -287,7 +287,7 @@ export const useWebRTC = (roomId, displayName, onLeaveCallback) => {
         break;
     }
   }, [createPeerConnection]);
-  
+
   // Connect to signaling server
   const connectSignaling = useCallback(() => {
     return new Promise((resolve, reject) => {
