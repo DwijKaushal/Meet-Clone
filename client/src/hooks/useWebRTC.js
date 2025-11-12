@@ -122,14 +122,17 @@ export const useWebRTC = (roomId, displayName, onLeaveCallback) => {
   // Handle signaling messages
   const handleSignalingMessage = useCallback((data) => {
     switch (data.type) {
+
       case 'joined':
         participantIdRef.current = data.participantId;
-        
+        console.log(`🟢 Joined room ${data.roomId} as ${data.participantId}`);
+
         // Create peer connections for existing participants
         if (data.participants) {
           data.participants.forEach(participant => {
+            console.log(`🔗 Creating connection to existing participant: ${participant.participantId}`);
             const pc = createPeerConnection(participant.participantId, true);
-            
+
             pc.createOffer()
               .then(offer => pc.setLocalDescription(offer))
               .then(() => {
@@ -138,15 +141,18 @@ export const useWebRTC = (roomId, displayName, onLeaveCallback) => {
                   targetId: participant.participantId,
                   offer: pc.localDescription
                 }));
+                console.log(`📡 Sent offer to existing participant: ${participant.participantId}`);
               })
-              .catch(error => console.error('Error creating offer:', error));
+              .catch(error => console.error('❌ Error creating offer:', error));
           });
         }
         break;
 
       case 'user-joined':
         // New user joined, create peer connection and send offer
+        console.log(`👤 New user joined: ${data.participantId}`);
         const pc = createPeerConnection(data.participantId, true);
+
         pc.createOffer()
           .then(offer => pc.setLocalDescription(offer))
           .then(() => {
@@ -155,25 +161,43 @@ export const useWebRTC = (roomId, displayName, onLeaveCallback) => {
               targetId: data.participantId,
               offer: pc.localDescription
             }));
+            console.log(`📡 Sent offer to new participant: ${data.participantId}`);
           })
-          .catch(error => console.error('Error creating offer for new user:', error));
+          .catch(error => console.error('❌ Error creating offer for new user:', error));
         break;
 
       case 'offer':
         // Receive offer from another peer
         const offerPc = peersRef.current.get(data.from);
         if (offerPc) {
-          offerPc.setRemoteDescription(new RTCSessionDescription(data.offer))
-            .then(() => offerPc.createAnswer())
-            .then(answer => offerPc.setLocalDescription(answer))
-            .then(() => {
-              wsRef.current?.send(JSON.stringify({
+          try {
+            // 🛡️ Guard against double-negotiation errors
+            if (offerPc.signalingState !== 'stable') {
+              console.warn(
+                `⚠️ Skipping setRemoteDescription: peer ${data.from} is in state ${offerPc.signalingState}`
+              );
+              return;
+            }
+
+            await offerPc.setRemoteDescription(new RTCSessionDescription(data.offer));
+            console.log(`✅ Applied remote offer from ${data.from}`);
+
+            const answer = await offerPc.createAnswer();
+            await offerPc.setLocalDescription(answer);
+            console.log(`📡 Created and set local answer for ${data.from}`);
+
+            wsRef.current?.send(
+              JSON.stringify({
                 type: 'answer',
                 targetId: data.from,
-                answer: offerPc.localDescription
-              }));
-            })
-            .catch(error => console.error('Error handling offer:', error));
+                answer: offerPc.localDescription,
+              })
+            );
+
+            console.log(`📨 Sent answer to ${data.from}`);
+          } catch (error) {
+            console.error('⚠️ Error handling offer:', error);
+          }
         }
         break;
 
@@ -181,8 +205,20 @@ export const useWebRTC = (roomId, displayName, onLeaveCallback) => {
         // Receive answer from another peer
         const answerPc = peersRef.current.get(data.from);
         if (answerPc) {
-          answerPc.setRemoteDescription(new RTCSessionDescription(data.answer))
-            .catch(error => console.error('Error handling answer:', error));
+          try {
+            // 🛡️ Prevent redundant remote description
+            if (answerPc.signalingState === 'stable') {
+              console.warn(
+                `⚠️ Skipping redundant setRemoteDescription for peer ${data.from} (already stable)`
+              );
+              return;
+            }
+
+            await answerPc.setRemoteDescription(new RTCSessionDescription(data.answer));
+            console.log(`✅ Applied remote answer from ${data.from}`);
+          } catch (error) {
+            console.error('⚠️ Error handling answer:', error);
+          }
         }
         break;
 
@@ -191,7 +227,8 @@ export const useWebRTC = (roomId, displayName, onLeaveCallback) => {
         const candidatePc = peersRef.current.get(data.from);
         if (candidatePc) {
           candidatePc.addIceCandidate(new RTCIceCandidate(data.candidate))
-            .catch(error => console.error('Error adding ICE candidate:', error));
+            .then(() => console.log(`🧊 Added ICE candidate from ${data.from}`))
+            .catch(error => console.error('❌ Error adding ICE candidate:', error));
         }
         break;
 
@@ -202,18 +239,23 @@ export const useWebRTC = (roomId, displayName, onLeaveCallback) => {
           leftPc.close();
           peersRef.current.delete(data.participantId);
           setRemoteStreams(prev => prev.filter(r => r.participantId !== data.participantId));
+          console.log(`👋 User left: ${data.participantId}`);
         }
         break;
 
       case 'audio-toggled':
       case 'video-toggled':
-        setRemoteStreams(prev => 
-          prev.map(r => 
+        setRemoteStreams(prev =>
+          prev.map(r =>
             r.participantId === data.participantId
-              ? { ...r, [data.type === 'audio-toggled' ? 'isAudioEnabled' : 'isVideoEnabled']: data.enabled }
+              ? {
+                  ...r,
+                  [data.type === 'audio-toggled' ? 'isAudioEnabled' : 'isVideoEnabled']: data.enabled
+                }
               : r
           )
         );
+        console.log(`🎛️ ${data.type} for ${data.participantId}: ${data.enabled}`);
         break;
 
       case 'chat':
@@ -221,6 +263,7 @@ export const useWebRTC = (roomId, displayName, onLeaveCallback) => {
           ...data,
           isOwn: data.participantId === participantIdRef.current
         }]);
+        console.log(`💬 Chat message from ${data.displayName}: ${data.message}`);
         break;
 
       case 'presence-update':
@@ -228,7 +271,7 @@ export const useWebRTC = (roomId, displayName, onLeaveCallback) => {
         setRemoteStreams(prev => {
           const existing = prev.find(r => r.participantId === data.participantId);
           if (existing) {
-            return prev.map(r => 
+            return prev.map(r =>
               r.participantId === data.participantId
                 ? { ...r, displayName: data.displayName }
                 : r
@@ -236,6 +279,7 @@ export const useWebRTC = (roomId, displayName, onLeaveCallback) => {
           }
           return prev;
         });
+        console.log(`🧩 Presence update: ${data.displayName}`);
         break;
 
       default:
@@ -243,7 +287,7 @@ export const useWebRTC = (roomId, displayName, onLeaveCallback) => {
         break;
     }
   }, [createPeerConnection]);
-
+  
   // Connect to signaling server
   const connectSignaling = useCallback(() => {
     return new Promise((resolve, reject) => {
